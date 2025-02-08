@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text Summarization</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-gradient: linear-gradient(120deg, #1a237e, #1976d2, #0288d1);
+            --hover-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --bg-color: #f5f7fa;
+            --text-color: #2d3436;
+            --card-bg: #ffffff;
+            --input-bg: #fcfcfc;
+            --border-color: #e9ecef;
+            --summary-bg: #f8fafc;
+            --title-color: #2d3436;
+            --subtitle-color: #546e7a;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #121212;
+            --text-color: #e0e0e0;
+            --card-bg: #1e1e1e;
+            --input-bg: #2d2d2d;
+            --border-color: #404040;
+            --summary-bg: #262626;
+            --title-color: #ffffff;
+            --subtitle-color: #a0a0a0;
+        }
+
+        body {
+            background: var(--bg-color);
+            min-height: 100vh;
+            font-family: 'Roboto', sans-serif;
+            color: var(--text-color);
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        .container {
+            max-width: 900px;
+            padding: 30px 20px;
+        }
+        .card {
+            backdrop-filter: blur(10px);
+            background-color: var(--card-bg) !important;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+            border-radius: 15px;
+            background-color: white;
+            transition: transform 0.2s ease;
+        }
+        .card:hover {
+            transform: translateY(-2px);
+        }
+        .bg-light {
+            background-color: var(--summary-bg) !important;
+            padding: 1.5rem !important;
+            border: 1px solid var(--border-color);
+        }
+        .btn {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 500;
+            padding: 0.7rem 1.5rem;
+            border-radius: 12px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            letter-spacing: 0.3px;
+            text-transform: uppercase;
+            font-size: 0.9rem;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+        }
+        .btn:active {
+            transform: translateY(1px);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #2b4c7d, #1e88e5);
+            border: none;
+            box-shadow: 0 4px 15px rgba(30, 136, 229, 0.2);
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #1e88e5, #2b4c7d);
+            box-shadow: 0 8px 25px rgba(30, 136, 229, 0.3);
+        }
+        .btn-danger {
+            background: linear-gradient(135deg, #d32f2f, #f44336);
+            border: none;
+            box-shadow: 0 4px 15px rgba(244, 67, 54, 0.2);
+        }
+        .btn-danger:hover {
+            background: linear-gradient(135deg, #f44336, #d32f2f);
+            box-shadow: 0 8px 25px rgba(244, 67, 54, 0.3);
+        }
+        .btn-secondary {
+            background: linear-gradient(135deg, #455a64, #607d8b);
+            border: none;
+            box-shadow: 0 4px 15px rgba(96, 125, 139, 0.2);
+        }
+        .btn-secondary:hover {
+            background: linear-gradient(135deg, #607d8b, #455a64);
+            box-shadow: 0 8px 25px rgba(96, 125, 139, 0.3);
+        }
+        .btn i {
+            font-size: 1.1rem;
+            transition: transform 0.3s ease;
+        }
+        .btn:hover i {
+            transform: scale(1.1);
+        }
+        .btn .spinner-border {
+            width: 1.2rem;
+            height: 1.2rem;
+            margin-right: 8px;
+        }
+        [data-theme="dark"] .btn {
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+        [data-theme="dark"] .btn:hover {
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+        }
+        .btn-success {
+            background: linear-gradient(135deg, #2e7d32, #43a047);
+            border: none;
+            box-shadow: 0 4px 15px rgba(67, 160, 71, 0.2);
+        }
+        .btn-success:hover {
+            background: linear-gradient(135deg, #43a047, #2e7d32);
+            box-shadow: 0 8px 25px rgba(67, 160, 71, 0.3);
+        }
+        .d-flex.gap-2 {
+            gap: 1rem !important;
+        }
+        @media (max-width: 768px) {
+            .btn {
+                padding: 0.8rem 1rem;
+                width: 100%;
+                justify-content: center;
+            }
+            .d-flex.gap-2 {
+                gap: 0.8rem !important;
+            }
+        }
+        textarea {
+            font-family: 'Roboto', sans-serif;
+            font-size: 1.1rem;
+            line-height: 1.8;
+            color: #2d3436;
+        }
+        textarea:focus {
+            border-color: #0d6efd;
+            box-shadow: 0 0 0 0.25rem rgba(13,110,253,.25);
+        }
+        .highlight {
+            background-color: rgba(255, 215, 0, 0.4);
+            border-radius: 4px;
+            padding: 2px 0;
+            transition: background-color 0.3s ease;
+        }
+        .word {
+            display: inline;
+            padding: 0 1px;
+        }
+        h1, h2, .fw-bold {
+            font-family: 'Poppins', sans-serif;
+            color: #2d3436;
+        }
+        h1.card-title {
+            font-size: 3rem;
+            font-weight: 600;
+            background: linear-gradient(120deg, #1a237e, #1976d2, #0288d1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 1.5rem;
+            letter-spacing: -0.5px;
+        }
+        h2.card-title {
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: #2d3436;
+        }
+        .form-label {
+            font-family: 'Poppins', sans-serif;
+            font-size: 1.1rem;
+            color: #2d3436;
+        }
+        .form-select {
+            font-family: 'Roboto', sans-serif;
+            font-size: 1rem;
+            border-color: #e0e0e0;
+            padding: 0.6rem 2.5rem 0.6rem 1rem;
+            background-color: #f8fafc;
+            transition: all 0.3s ease;
+        }
+        .form-select:focus {
+            box-shadow: 0 0 0 3px rgba(13,110,253,0.15);
+        }
+        #summary-text {
+            font-family: 'Roboto', sans-serif;
+            font-size: 1.15rem;
+            line-height: 1.9;
+            color: #37474f;
+            text-align: justify;
+            hyphens: auto;
+        }
+        .summary-sentence {
+            margin-bottom: 0.5rem;
+            display: inline-block;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .card {
+            animation: fadeIn 0.5s ease-out;
+        }
+        .title-container {
+            text-align: center;
+            margin-bottom: 2.5rem;
+            padding: 1rem 0;
+        }
+
+        h1.card-title {
+            font-size: 2.8rem;
+            font-weight: 700;
+            font-family: 'Poppins', sans-serif;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(120deg, #2b4c7d, #1e88e5, #039be5);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .title-subtitle {
+            font-family: 'Roboto', sans-serif;
+            font-size: 1.2rem;
+            color: #546e7a;
+            font-weight: 400;
+            margin-top: 0.5rem;
+            max-width: 600px;
+            margin: 1rem auto;
+        }
+
+        .title-divider {
+            width: 80px;
+            height: 4px;
+            background: linear-gradient(90deg, #2b4c7d, #1e88e5);
+            margin: 1rem auto;
+            border-radius: 2px;
+        }
+
+        @keyframes titleFadeIn {
+            0% { 
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            100% { 
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .title-container {
+            animation: titleFadeIn 0.8s ease-out forwards;
+        }
+
+        /* Responsive improvements */
+        @media (max-width: 768px) {
+            h1.card-title {
+                font-size: 2.5rem;
+            }
+            
+            .title-subtitle {
+                font-size: 1.1rem;
+            }
+            
+            .d-flex {
+                flex-direction: column;
+            }
+            
+            .form-select {
+                width: 100% !important;
+            }
+            
+            .btn {
+                width: 100%;
+                margin-top: 0.5rem;
+            }
+        }
+
+        /* Loading state */
+        .loading {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+
+        /* Smooth scrolling */
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* Animation for new summary */
+        .summary-appear {
+            animation: summaryAppear 0.5s ease-out;
+        }
+
+        @keyframes summaryAppear {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Enhanced card styling */
+        .card {
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: var(--hover-transition);
+        }
+
+        /* Improved textarea experience */
+        textarea.form-control {
+            font-size: 1.05rem;
+            line-height: 1.8;
+            background-color: var(--input-bg);
+            resize: vertical;
+            min-height: 200px;
+            max-height: 500px;
+            transition: var(--hover-transition);
+            color: var(--text-color);
+            border-color: var(--border-color);
+        }
+
+        textarea.form-control:focus {
+            background-color: #ffffff;
+        }
+
+        /* Enhanced button styles */
+        .btn-primary {
+            background: var(--primary-gradient);
+            border: none;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(25, 118, 210, 0.3);
+        }
+
+        .btn-danger {
+            background: linear-gradient(45deg, #d32f2f, #f44336);
+            border: none;
+        }
+
+        /* Improved summary section */
+        .bg-light {
+            border-radius: 12px;
+            background: #fafbfc !important;
+        }
+
+        /* Add subtle hover effect to copy and read buttons */
+        .summary .btn {
+            transition: var(--hover-transition);
+        }
+
+        .summary .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        /* Add focus styles for better accessibility */
+        .btn:focus, .form-select:focus {
+            box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.25);
+            outline: none;
+        }
+
+        /* Add placeholder styling */
+        textarea::placeholder {
+            color: #9e9e9e;
+            font-style: italic;
+        }
+
+        /* Add tooltip styles */
+        .tooltip {
+            position: relative;
+        }
+
+        /* Improve mobile experience */
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            textarea.form-control {
+                min-height: 150px;
+            }
+        }
+
+        /* Style the resize handle */
+        textarea.form-control::-webkit-resizer {
+            border-width: 8px;
+            border-style: solid;
+            border-color: transparent #ccd0d4 #ccd0d4 transparent;
+            background: transparent;
+        }
+
+        /* Add a subtle indicator for the resize area */
+        textarea.form-control {
+            position: relative;
+            background-image: linear-gradient(135deg, transparent 15px, var(--border-color) 15px, var(--border-color) 16px, transparent 16px);
+            background-position: right bottom;
+            background-repeat: no-repeat;
+            background-size: 20px 20px;
+        }
+
+        /* Add hover effect for the resize area */
+        textarea.form-control:hover {
+            background-image: linear-gradient(135deg, transparent 15px, #0d6efd 15px, #0d6efd 16px, transparent 16px);
+        }
+
+        /* Improve the resize handle interaction area */
+        textarea.form-control {
+            padding-bottom: 25px;
+        }
+
+        /* Dark mode support for resize handle */
+        [data-theme="dark"] textarea.form-control {
+            background-image: linear-gradient(135deg, transparent 15px, #4a4a4a 15px, #4a4a4a 16px, transparent 16px);
+        }
+
+        [data-theme="dark"] textarea.form-control:hover {
+            background-image: linear-gradient(135deg, transparent 15px, #2196f3 15px, #2196f3 16px, transparent 16px);
+        }
+
+        /* Theme toggle button styles */
+        .theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .theme-toggle:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .theme-toggle i {
+            font-size: 1.2rem;
+            transition: transform 0.5s ease;
+        }
+
+        [data-theme="dark"] .theme-toggle i {
+            transform: rotate(360deg);
+        }
+
+        /* Dark mode specific styles */
+        [data-theme="dark"] #summary-text {
+            color: #e0e0e0;
+        }
+
+        [data-theme="dark"] .title-subtitle {
+            color: #a0a0a0;
+        }
+
+        [data-theme="dark"] textarea::placeholder {
+            color: #808080;
+        }
+
+        /* Dark mode specific adjustments */
+        [data-theme="dark"] .highlight {
+            background-color: rgba(255, 215, 0, 0.2);
+        }
+
+        [data-theme="dark"] .form-select {
+            background-color: var(--input-bg);
+            color: var(--text-color);
+            border-color: var(--border-color);
+        }
+
+        [data-theme="dark"] .form-select:focus {
+            border-color: #0d6efd;
+        }
+
+        [data-theme="dark"] .card {
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Update these styles */
+        textarea.form-control {
+            background-color: var(--input-bg) !important;
+            color: var(--text-color) !important;
+            border-color: var(--border-color);
+        }
+
+        textarea.form-control:focus {
+            background-color: var(--input-bg) !important;
+            border-color: #0d6efd;
+            box-shadow: 0 0 0 0.25rem rgba(13,110,253,.25);
+        }
+
+        .bg-light {
+            background-color: var(--summary-bg) !important;
+            border-color: var(--border-color);
+        }
+
+        #summary-text {
+            color: var(--text-color) !important;
+        }
+
+        /* Update dark mode specific styles */
+        [data-theme="dark"] {
+            --bg-color: #121212;
+            --text-color: #e0e0e0;
+            --card-bg: #1e1e1e;
+            --input-bg: #2d2d2d;
+            --border-color: #404040;
+            --summary-bg: #262626;
+            --title-color: #ffffff;
+            --subtitle-color: #a0a0a0;
+        }
+
+        [data-theme="dark"] .form-control::placeholder {
+            color: #666666;
+        }
+
+        [data-theme="dark"] .highlight {
+            background-color: rgba(255, 215, 0, 0.2);
+        }
+
+        [data-theme="dark"] .form-label {
+            color: var(--text-color);
+        }
+
+        [data-theme="dark"] h2.card-title {
+            color: var(--title-color);
+        }
+    </style>
+</head>
+<body>
+    <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+        <i class="bi bi-sun-fill"></i>
+    </button>
+    <div class="container py-4">
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="title-container">
+                    <h1 class="card-title">Text Summarization Tool</h1>
+                    <div class="title-divider"></div>
+                    <p class="title-subtitle">Transform your long text into concise, meaningful summaries</p>
+                </div>
+                <form method="POST">
+                    <div class="mb-4">
+                        <label for="text" class="form-label fw-bold">Enter your text:</label>
+                        <textarea 
+                            name="text" 
+                            id="text" 
+                            class="form-control" 
+                            required 
+                            placeholder="Enter your text here to generate a summary...">{{ request.form.get('text', '') }}</textarea>
+                        <div class="mt-2">
+                            <button type="button" onclick="clearText()" class="btn btn-danger" aria-label="Clear text">
+                                <i class="bi bi-trash"></i> Clear Text
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <label for="summary_size" class="form-label mb-0 fw-bold">Summary Size:</label>
+                        <select name="summary_size" id="summary_size" class="form-select w-auto">
+                            <option value="short" {% if request.form.get('summary_size') == 'short' %}selected{% endif %}>Short (30% of text)</option>
+                            <option value="medium" {% if request.form.get('summary_size', 'medium') == 'medium' %}selected{% endif %}>Medium (50% of text)</option>
+                            <option value="detailed" {% if request.form.get('summary_size') == 'detailed' %}selected{% endif %}>Detailed (70% of text)</option>
+                        </select>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-magic"></i> Generate Summary
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        {% if summary %}
+        <div class="card">
+            <div class="card-body">
+                <h2 class="card-title mb-3">Summary</h2>
+                <div class="bg-light p-3 rounded mb-3">
+                    <p id="summary-text" class="mb-0">
+                        {% for sentence in summary.split('.') %}
+                            {% if sentence.strip() %}
+                            <span class="summary-sentence">
+                                {% for word in sentence.strip().split() %}
+                                <span class="word">{{ word }}</span>
+                                {% endfor %}
+                                <span class="word">.</span>
+                            </span>
+                            {% endif %}
+                        {% endfor %}
+                    </p>
+                </div>
+                <div class="d-flex gap-2">
+                    <button onclick="copyText()" class="btn btn-primary" id="copyButton">
+                        <i class="bi bi-clipboard"></i> <span>Copy</span>
+                        <i class="bi bi-check2 d-none checkmark"></i>
+                    </button>
+                    <button onclick="toggleSpeech()" class="btn btn-secondary" id="readButton">
+                        <i class="bi bi-volume-up"></i> <span>Read Aloud</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Bootstrap JS and Popper.js -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        function copyText() {
+            const text = document.getElementById('summary-text').innerText;
+            const button = document.getElementById('copyButton');
+            const textSpan = button.querySelector('span');
+            const checkmark = button.querySelector('.checkmark');
+            
+            navigator.clipboard.writeText(text).then(() => {
+                button.classList.remove('btn-primary');
+                button.classList.add('btn-success');
+                textSpan.textContent = 'Copied!';
+                checkmark.classList.remove('d-none');
+                
+                setTimeout(() => {
+                    button.classList.remove('btn-success');
+                    button.classList.add('btn-primary');
+                    textSpan.textContent = 'Copy';
+                    checkmark.classList.add('d-none');
+                }, 2000);
+            });
+        }
+
+        function clearText() {
+            // Clear the textarea
+            document.getElementById('text').value = '';
+            
+            // Find and remove the summary card if it exists
+            const summaryCard = document.querySelector('.card:last-child');
+            if (summaryCard && summaryCard.contains(document.querySelector('#summary-text'))) {
+                summaryCard.remove();
+            }
+            
+            // Stop any ongoing speech
+            if (speaking) {
+                stopSpeaking();
+            }
+        }
+
+        let speechSynthesis = window.speechSynthesis;
+        let speaking = false;
+        let currentUtterance = null;
+
+        function toggleSpeech() {
+            const button = document.getElementById('readButton');
+            const text = document.getElementById('summary-text').innerText;
+            
+            if (speaking) {
+                stopSpeaking();
+            } else {
+                startSpeaking(text);
+            }
+        }
+
+        function startSpeaking(text) {
+            const button = document.getElementById('readButton');
+            const words = document.querySelectorAll('.word');
+            const utterance = new SpeechSynthesisUtterance(text);
+            currentUtterance = utterance;
+            
+            let wordIndex = 0;
+            
+            utterance.onboundary = function(event) {
+                if (event.name === 'word') {
+                    words.forEach(word => word.classList.remove('highlight'));
+                    if (wordIndex < words.length) {
+                        words[wordIndex].classList.add('highlight');
+                        wordIndex++;
+                    }
+                }
+            };
+            
+            utterance.onend = function() {
+                speaking = false;
+                button.classList.remove('btn-danger');
+                button.classList.add('btn-secondary');
+                button.querySelector('span').textContent = 'Read Aloud';
+                words.forEach(word => word.classList.remove('highlight'));
+                currentUtterance = null;
+            };
+            
+            speaking = true;
+            button.classList.remove('btn-secondary');
+            button.classList.add('btn-danger');
+            button.querySelector('span').textContent = 'Stop Reading';
+            
+            speechSynthesis.speak(utterance);
+        }
+
+        function stopSpeaking() {
+            const button = document.getElementById('readButton');
+            const words = document.querySelectorAll('.word');
+            
+            speechSynthesis.cancel();
+            speaking = false;
+            button.classList.remove('btn-danger');
+            button.classList.add('btn-secondary');
+            button.querySelector('span').textContent = 'Read Aloud';
+            words.forEach(word => word.classList.remove('highlight'));
+            currentUtterance = null;
+        }
+
+        // Clean up speech when leaving the page
+        window.onbeforeunload = function() {
+            if (speaking) {
+                stopSpeaking();
+            }
+        };
+
+        // Add loading state to form submission
+        document.querySelector('form').addEventListener('submit', function(e) {
+            this.classList.add('loading');
+            document.querySelector('button[type="submit"]').innerHTML = `
+                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                Generating...
+            `;
+        });
+
+        // Smooth scroll to summary when generated
+        if(document.querySelector('.summary')) {
+            document.querySelector('.summary').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        // Add smooth transition when generating summary
+        document.querySelector('form').addEventListener('submit', function() {
+            document.body.style.cursor = 'wait';
+        });
+
+        // Restore cursor when page loads
+        window.addEventListener('load', function() {
+            document.body.style.cursor = 'default';
+        });
+
+        // Prevent form submission if textarea is empty except for whitespace
+        document.querySelector('form').addEventListener('submit', function(e) {
+            const text = document.querySelector('textarea').value.trim();
+            if (!text) {
+                e.preventDefault();
+                alert('Please enter some text to summarize.');
+            }
+        });
+
+        // Theme toggle functionality
+        function toggleTheme() {
+            const html = document.documentElement;
+            const themeToggle = document.querySelector('.theme-toggle i');
+            
+            if (html.getAttribute('data-theme') === 'dark') {
+                html.removeAttribute('data-theme');
+                themeToggle.classList.remove('bi-sun-fill');
+                themeToggle.classList.add('bi-moon-fill');
+                localStorage.setItem('theme', 'light');
+            } else {
+                html.setAttribute('data-theme', 'dark');
+                themeToggle.classList.remove('bi-moon-fill');
+                themeToggle.classList.add('bi-sun-fill');
+                localStorage.setItem('theme', 'dark');
+            }
+        }
+
+        // Check for saved theme preference
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedTheme = localStorage.getItem('theme');
+            const themeToggle = document.querySelector('.theme-toggle i');
+            
+            if (savedTheme === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                themeToggle.classList.remove('bi-moon-fill');
+                themeToggle.classList.add('bi-sun-fill');
+            } else {
+                themeToggle.classList.remove('bi-sun-fill');
+                themeToggle.classList.add('bi-moon-fill');
+            }
+        });
+    </script>
+</body>
+</html> 
