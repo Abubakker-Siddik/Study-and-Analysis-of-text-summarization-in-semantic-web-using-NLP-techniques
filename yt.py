@@ -3,28 +3,45 @@ from nltk.corpus import stopwords
 from nltk.cluster.util import cosine_distance
 import numpy as np
 import networkx as nx
+from collections import Counter
 
 # Ensure necessary NLTK data is downloaded
 nltk.download('stopwords')
 nltk.download('punkt')
 
 
+def preprocess_text(sentences: list) -> list:
+    """Preprocess sentences while keeping short but meaningful ones."""
+    processed_sentences = []
+
+    for sentence in sentences:
+        cleaned = ' '.join(sentence).strip()
+
+        # Keep short but meaningful sentences
+        if len(cleaned.split()) < 3:
+            continue
+
+        cleaned = cleaned.replace('"', '').replace("'", "")
+        processed_sentences.append(cleaned.split())
+
+    return processed_sentences
+
+
 def read_article(file_name: str) -> list:
-    """Reads the article from a given file and tokenizes it into sentences."""
+    """Reads the article and tokenizes it into sentences."""
     try:
         with open(file_name, "r") as file:
             filedata = file.readlines()
 
-        if not filedata:  # Handle empty files
+        if not filedata:
             print(f"Error: The file '{file_name}' is empty.")
             return []
 
-        article = " ".join(filedata)  # Join all lines in case the file spans multiple lines
-        sentences = nltk.sent_tokenize(article)  # Use NLTK's sentence tokenizer
-
-        # Tokenize each sentence into words
+        article = " ".join(filedata)
+        sentences = nltk.sent_tokenize(article)
         sentences = [sentence.split(" ") for sentence in sentences]
-        return sentences
+
+        return preprocess_text(sentences)
 
     except FileNotFoundError:
         print(f"Error: The file '{file_name}' was not found.")
@@ -32,38 +49,25 @@ def read_article(file_name: str) -> list:
 
 
 def sentence_similarity(sent1: list, sent2: list, stopwords: set = None) -> float:
-    """Calculates the cosine similarity between two sentences."""
+    """Improved sentence similarity calculation using word uniqueness."""
     if stopwords is None:
         stopwords = set()
 
-    # Convert sentences to lowercase and remove stopwords
-    sent1 = [w.lower() for w in sent1]
-    sent2 = [w.lower() for w in sent2]
+    sent1 = [w.lower() for w in sent1 if w.lower() not in stopwords]
+    sent2 = [w.lower() for w in sent2 if w.lower() not in stopwords]
 
-    all_words = list(set(sent1 + sent2))
+    unique_words = set(sent1 + sent2)
+    word_frequencies = Counter(sent1 + sent2)
 
-    # Create vectors for the two sentences
-    vector1 = [0] * len(all_words)
-    vector2 = [0] * len(all_words)
-
-    for w in sent1:
-        if w in stopwords:
-            continue
-        vector1[all_words.index(w)] += 1
-
-    for w in sent2:
-        if w in stopwords:
-            continue
-        vector2[all_words.index(w)] += 1
+    vector1 = [1 / word_frequencies[word] for word in unique_words]  # Less frequent words get higher weight
+    vector2 = [1 / word_frequencies[word] for word in unique_words]
 
     similarity = 1 - cosine_distance(vector1, vector2)
-    if np.isnan(similarity):  # Handle zero vectors
-        return 0
-    return similarity
+    return max(0, similarity)
 
 
 def gen_sim_matrix(sentences: list, stop_words: set) -> np.ndarray:
-    """Generates a similarity matrix for the sentences."""
+    """Generates a similarity matrix for ranking sentences."""
     similarity_matrix = np.zeros((len(sentences), len(sentences)))
 
     for idx1 in range(len(sentences)):
@@ -75,49 +79,79 @@ def gen_sim_matrix(sentences: list, stop_words: set) -> np.ndarray:
     return similarity_matrix
 
 
-def generate_summary(file_name: str, summary_size: str = 'medium') -> str:
-    """Generates the summary of the text in the given file.
-    
-    Args:
-        file_name: Path to the text file
-        summary_size: Size of summary ('short', 'medium', or 'detailed')
-    """
-    stop_words = set(stopwords.words('english'))
-    summarize_text = []
+def get_most_important_sentences(sentences: list, num_sentences: int) -> list:
+    """Selects the most important sentences while maintaining logical flow dynamically."""
 
+    # Count word frequency across all sentences
+    word_frequencies = Counter([word.lower() for sentence in sentences for word in sentence])
+
+    # Rank sentences based on overall importance (word frequency + sentence position weight)
+    ranked_sentences = sorted(
+        enumerate(sentences),
+        key=lambda x: (
+                sum(word_frequencies[word.lower()] for word in x[1]) +
+                (5 if x[0] == 0 else 0) +  # Extra weight for the first sentence
+                (3 if x[0] == len(sentences) - 1 else 0)  # Extra weight for the last sentence
+        ),
+        reverse=True
+    )
+
+    # Select sentences while ensuring we don't exceed num_sentences
+    selected_indices = []
+    for index, sentence in ranked_sentences:
+        if len(selected_indices) >= num_sentences:
+            break
+        selected_indices.append(index)
+
+    return sorted(selected_indices)
+
+
+def generate_summary(file_name: str, summary_size: str = 'medium') -> str:
+    """Generates a structured summary for any type of story while maintaining readability."""
+    stop_words = set(stopwords.words('english'))
     sentences = read_article(file_name)
 
     if not sentences:
         return "Error: No valid sentences found in the file."
 
     total_sentences = len(sentences)
-    
-    # Define ratios based on summary size
-    size_ratios = {
-        'short': 0.3,    # 30% of original text
-        'medium': 0.5,   # 50% of original text
-        'detailed': 0.7  # 70% of original text
-    }
-    
-    # Get ratio based on selected size (default to medium if invalid size provided)
+
+    # Summary size selection
+    size_ratios = {'short': 0.3, 'medium': 0.5, 'detailed': 0.7}
+    min_sentences = {'short': 2, 'medium': 4, 'detailed': 6}
+
     ratio = size_ratios.get(summary_size, 0.5)
-    
-    # Calculate number of sentences for summary
-    # Ensure at least 3 sentences for short, 5 for medium, 7 for detailed
-    min_sentences = {'short': 3, 'medium': 5, 'detailed': 7}
-    min_sent = min_sentences.get(summary_size, 5)
-    
-    # Calculate final number of sentences
-    top_n = max(min_sent, int(total_sentences * ratio))
-    top_n = min(top_n, total_sentences)  # Don't exceed total sentences
+    min_sent = min_sentences.get(summary_size, 4)
 
-    sentence_similarity_matrix = gen_sim_matrix(sentences, stop_words)
-    sentence_similarity_graph = nx.from_numpy_array(sentence_similarity_matrix)
+    # Calculate the number of sentences for summary while ensuring 30%, 50%, and 70% differences
+    top_n = max(1, min(int(total_sentences * ratio), total_sentences - 1))
+
+    # Generate similarity matrix
+    similarity_matrix = gen_sim_matrix(sentences, stop_words)
+
+    # Create graph and calculate scores
+    sentence_similarity_graph = nx.from_numpy_array(similarity_matrix)
     scores = nx.pagerank(sentence_similarity_graph)
-    ranked_sentence = sorted(((scores[i], s) for i, s in enumerate(sentences)), reverse=True)
 
-    # Get the top N sentences for the summary
-    for i in range(top_n):
-        summarize_text.append(" ".join(ranked_sentence[i][1]))
+    # Get ranked sentences with their original positions
+    ranked_sentences = sorted([(scores[i], i, s) for i, s in enumerate(sentences)], reverse=True)
 
-    return ". ".join(summarize_text)
+    # Ensure logical flow: Always keep the first and last sentence
+    key_sentences = [0]
+    if len(sentences) > 1:
+        key_sentences.append(len(sentences) - 1)
+
+        # Limit the number of selected sentences to exactly top_n
+    selected_indices = sorted(set(key_sentences))
+    for _, idx, _ in ranked_sentences:
+        if len(selected_indices) < top_n:
+            selected_indices.append(idx)
+        else:
+            break
+
+            # Reconstruct summary while maintaining readability
+    structured_summary = []
+    for idx in sorted(set(selected_indices)):
+        structured_summary.append(" ".join(sentences[idx]))
+
+    return "\n\n".join(structured_summary)  # Adds spacing for better readability
